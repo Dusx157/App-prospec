@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  --color-canvas: #0B0D12;
+  --color-surface: #141821;
+  --color-surface-hover: #181D28;
+  --color-border-subtle: #252B36;
+  --color-ink-primary: #F5F7FA;
+  --color-ink-secondary: #929BAA;
+  --color-accent: #19C37D;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  html,
+  body {
+    background-color: #0B0D12;
+    color: #F5F7FA;
+    font-family: var(--font-sans);
+    letter-spacing: -0.005em;
+  }
+
+  ::selection {
+    background-color: rgba(25, 195, 125, 0.28);
+    color: #F5F7FA;
+  }
+
+  /* Tabular numerals for metrics, financial data, and tables */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Subtle dark scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0D12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #252B36;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #363E4E;
+}

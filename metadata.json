@@ -1,0 +1,8 @@
+{
+  "name": "NFC Prospect",
+  "description": "Plataforma SaaS de inteligência comercial, radar de empresas via Google Maps, CRM Kanban e gestão financeira para venda de placas NFC de avaliação Google.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

@@ -1,0 +1,304 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Perfil e configurações operacionais do usuário autenticado",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "format": "email", "maxLength": 200 },
+        "photoURL": { "type": "string", "maxLength": 500 },
+        "companyName": { "type": "string", "maxLength": 120 },
+        "defaultCity": { "type": "string", "maxLength": 100 },
+        "defaultState": { "type": "string", "maxLength": 40 },
+        "whatsappTemplate": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "email", "createdAt", "updatedAt"]
+    },
+    "Business": {
+      "title": "Business",
+      "description": "Estabelecimento comercial descoberto via Google Places API (New)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "placeId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "categoryKey": { "type": "string", "maxLength": 64 },
+        "address": { "type": "string", "maxLength": 400 },
+        "city": { "type": "string", "maxLength": 100 },
+        "state": { "type": "string", "maxLength": 60 },
+        "neighborhood": { "type": "string", "maxLength": 100 },
+        "postalCode": { "type": "string", "maxLength": 20 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "rating": { "type": "number" },
+        "userRatingCount": { "type": "integer" },
+        "reviews": { "type": "array", "description": "Até 5 avaliações públicas recentes retornadas pela API" },
+        "phone": { "type": "string", "maxLength": 40 },
+        "whatsapp": { "type": "string", "maxLength": 40 },
+        "websiteUri": { "type": "string", "maxLength": 500 },
+        "googleMapsUri": { "type": "string", "maxLength": 500 },
+        "instagram": { "type": "string", "maxLength": 300 },
+        "email": { "type": "string", "maxLength": 200 },
+        "opportunityScore": { "type": "integer" },
+        "opportunityLevel": { "type": "string", "enum": ["baixa", "media", "alta"] },
+        "opportunityReasons": { "type": "array", "description": "Motivos da pontuação de oportunidade (máximo 10 itens)" },
+        "geminiAnalysis": { "type": "string", "maxLength": 2000 },
+        "hasWebsite": { "type": "boolean" },
+        "hasPhone": { "type": "boolean" },
+        "photosCount": { "type": "integer" },
+        "hasOpeningHours": { "type": "boolean" },
+        "hasEditorialSummary": { "type": "boolean" },
+        "editorialSummary": { "type": "string", "maxLength": 500 },
+        "openingHoursSummary": { "type": "string", "maxLength": 400 },
+        "gbpScore": { "type": "integer" },
+        "gbpGaps": { "type": "array", "description": "Pontos de melhoria no Google Meu Negócio (máximo 8 itens)" },
+        "lastUpdatedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "placeId", "name", "category", "lat", "lng", "opportunityScore", "opportunityLevel", "createdAt", "updatedAt"]
+    },
+    "Lead": {
+      "title": "Lead",
+      "description": "Lead salvo no CRM e Pipeline de Vendas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "businessId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "placeId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "businessName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "category": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "city": { "type": "string", "maxLength": 100 },
+        "address": { "type": "string", "maxLength": 400 },
+        "phone": { "type": "string", "maxLength": 40 },
+        "whatsapp": { "type": "string", "maxLength": 40 },
+        "email": { "type": "string", "maxLength": 200 },
+        "instagram": { "type": "string", "maxLength": 300 },
+        "websiteUri": { "type": "string", "maxLength": 500 },
+        "googleMapsUri": { "type": "string", "maxLength": 500 },
+        "rating": { "type": "number" },
+        "userRatingCount": { "type": "integer" },
+        "opportunityScore": { "type": "integer" },
+        "opportunityLevel": { "type": "string", "enum": ["baixa", "media", "alta"] },
+        "stage": {
+          "type": "string",
+          "enum": ["novo_lead", "nao_contatado", "primeiro_contato", "interessado", "em_negociacao", "venda_concluida", "sem_interesse"]
+        },
+        "notes": { "type": "string", "maxLength": 3000 },
+        "lastContactAt": { "type": "string", "maxLength": 64 },
+        "nextFollowUpAt": { "type": "string", "maxLength": 64 },
+        "convertedSaleId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "businessId", "placeId", "businessName", "category", "opportunityScore", "opportunityLevel", "stage", "createdAt", "updatedAt"]
+    },
+    "Interaction": {
+      "title": "Interaction",
+      "description": "Registro de contato ou interação com um lead",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "leadId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "businessName": { "type": "string", "maxLength": 200 },
+        "type": { "type": "string", "enum": ["whatsapp", "ligacao", "email", "instagram", "visita", "nota"] },
+        "summary": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "contactDate": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "leadId", "type", "summary", "contactDate", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Produto cadastrado no catálogo e estoque",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sku": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "unitCost": { "type": "number" },
+        "salePrice": { "type": "number" },
+        "stockQuantity": { "type": "integer" },
+        "minStock": { "type": "integer" },
+        "avgAcquisitionCost": { "type": "number" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "sku", "unitCost", "salePrice", "stockQuantity", "minStock", "avgAcquisitionCost", "active", "createdAt", "updatedAt"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Venda registrada no módulo financeiro",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "leadId": { "type": "string", "maxLength": 128 },
+        "customerName": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "productSummary": { "type": "string", "maxLength": 300 },
+        "totalQuantity": { "type": "integer" },
+        "totalRevenue": { "type": "number" },
+        "totalCost": { "type": "number" },
+        "discount": { "type": "number" },
+        "shipping": { "type": "number" },
+        "netReceived": { "type": "number" },
+        "grossProfit": { "type": "number" },
+        "marginPercent": { "type": "number" },
+        "paymentMethod": { "type": "string", "enum": ["pix", "credito", "debito", "dinheiro", "boleto", "transferencia"] },
+        "paymentStatus": { "type": "string", "enum": ["pago", "pendente", "cancelado"] },
+        "saleDate": { "type": "string", "maxLength": 32 },
+        "notes": { "type": "string", "maxLength": 1500 },
+        "stockDeducted": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "customerName", "totalQuantity", "totalRevenue", "totalCost", "discount", "shipping", "netReceived", "grossProfit", "marginPercent", "paymentMethod", "paymentStatus", "saleDate", "stockDeducted", "createdAt", "updatedAt"]
+    },
+    "SaleItem": {
+      "title": "SaleItem",
+      "description": "Item detalhado de uma venda",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "saleId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "productId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "sku": { "type": "string", "maxLength": 64 },
+        "quantity": { "type": "integer" },
+        "unitPrice": { "type": "number" },
+        "unitCost": { "type": "number" },
+        "subtotal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "saleId", "productId", "productName", "quantity", "unitPrice", "unitCost", "subtotal", "createdAt"]
+    },
+    "InventoryMovement": {
+      "title": "InventoryMovement",
+      "description": "Movimentação de entrada, saída por venda ou ajuste de estoque",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "productId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "productName": { "type": "string", "minLength": 1, "maxLength": 160 },
+        "type": { "type": "string", "enum": ["entrada", "saida_venda", "ajuste"] },
+        "quantityDelta": { "type": "integer" },
+        "previousQuantity": { "type": "integer" },
+        "newQuantity": { "type": "integer" },
+        "unitCost": { "type": "number" },
+        "saleId": { "type": "string", "maxLength": 128 },
+        "reason": { "type": "string", "maxLength": 300 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "productId", "productName", "type", "quantityDelta", "previousQuantity", "newQuantity", "unitCost", "createdAt"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Despesa operacional vinculada ao cálculo financeiro",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "description": { "type": "string", "minLength": 1, "maxLength": 240 },
+        "category": { "type": "string", "maxLength": 80 },
+        "amount": { "type": "number" },
+        "expenseDate": { "type": "string", "maxLength": 32 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "description", "category", "amount", "expenseDate", "createdAt"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Lembrete de retorno comercial vinculado a um lead",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "leadId": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "businessName": { "type": "string", "maxLength": 200 },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "dueDate": { "type": "string", "maxLength": 32 },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "leadId", "businessName", "title", "dueDate", "completed", "createdAt", "updatedAt"]
+    },
+    "SearchHistory": {
+      "title": "SearchHistory",
+      "description": "Histórico de buscas realizadas no Radar de Empresas",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-zA-Z0-9_\\-]+$", "maxLength": 128 },
+        "ownerId": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "city": { "type": "string", "maxLength": 100 },
+        "state": { "type": "string", "maxLength": 60 },
+        "neighborhood": { "type": "string", "maxLength": 100 },
+        "postalCode": { "type": "string", "maxLength": 20 },
+        "radiusKm": { "type": "number" },
+        "category": { "type": "string", "maxLength": 100 },
+        "requestedCount": { "type": "integer" },
+        "resultsCount": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "category", "radiusKm", "requestedCount", "resultsCount", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Dados de perfil e preferências do usuário"
+    },
+    "/businesses/{businessId}": {
+      "schema": { "$ref": "#/entities/Business" },
+      "description": "Estabelecimentos encontrados e enriquecidos por usuário"
+    },
+    "/leads/{leadId}": {
+      "schema": { "$ref": "#/entities/Lead" },
+      "description": "Leads comerciais no CRM por usuário"
+    },
+    "/interactions/{interactionId}": {
+      "schema": { "$ref": "#/entities/Interaction" },
+      "description": "Histórico de interações com leads"
+    },
+    "/products/{productId}": {
+      "schema": { "$ref": "#/entities/Product" },
+      "description": "Produtos e níveis de estoque por usuário"
+    },
+    "/sales/{saleId}": {
+      "schema": { "$ref": "#/entities/Sale" },
+      "description": "Registros financeiros de vendas por usuário"
+    },
+    "/sale_items/{itemId}": {
+      "schema": { "$ref": "#/entities/SaleItem" },
+      "description": "Itens individuais de cada venda"
+    },
+    "/inventory_movements/{movementId}": {
+      "schema": { "$ref": "#/entities/InventoryMovement" },
+      "description": "Livro-razão imutável de movimentações de estoque"
+    },
+    "/expenses/{expenseId}": {
+      "schema": { "$ref": "#/entities/Expense" },
+      "description": "Despesas operacionais registradas pelo usuário"
+    },
+    "/reminders/{reminderId}": {
+      "schema": { "$ref": "#/entities/Reminder" },
+      "description": "Lembretes de retorno comercial"
+    },
+    "/search_history/{searchId}": {
+      "schema": { "$ref": "#/entities/SearchHistory" },
+      "description": "Histórico de pesquisas do Radar de Empresas"
+    }
+  }
+}

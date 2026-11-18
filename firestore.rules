@@ -1,0 +1,579 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Identity & Format Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isOwnerData(data) {
+      return isVerified() && data.ownerId == request.auth.uid;
+    }
+
+    function isNonEmptyString(val, maxLen) {
+      return val is string && val.size() >= 1 && val.size() <= maxLen;
+    }
+
+    function isOptionalString(data, key, maxLen) {
+      return !(key in data) || (data[key] is string && data[key].size() <= maxLen);
+    }
+
+    function isOptionalNumber(data, key) {
+      return !(key in data) || (data[key] is int || data[key] is float);
+    }
+
+    function isOptionalInt(data, key) {
+      return !(key in data) || (data[key] is int);
+    }
+
+    function isOptionalBool(data, key) {
+      return !(key in data) || (data[key] is bool);
+    }
+
+    // =========================================================================
+    // 1. USERS (/users/{userId})
+    // =========================================================================
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'displayName', 'email', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly([
+          'uid', 'displayName', 'email', 'photoURL', 'companyName',
+          'defaultCity', 'defaultState', 'whatsappTemplate', 'createdAt', 'updatedAt'
+        ])
+        && data.uid is string && data.uid == userId && data.uid == request.auth.uid
+        && isNonEmptyString(data.displayName, 120)
+        && isNonEmptyString(data.email, 200)
+        && isOptionalString(data, 'photoURL', 500)
+        && isOptionalString(data, 'companyName', 120)
+        && isOptionalString(data, 'defaultCity', 100)
+        && isOptionalString(data, 'defaultState', 40)
+        && isOptionalString(data, 'whatsappTemplate', 1000)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isVerified() && request.auth.uid == userId;
+      allow list: if false;
+      allow create: if isValidId(userId)
+        && isVerified()
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId)
+        && isVerified()
+        && request.auth.uid == userId
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'displayName', 'photoURL', 'companyName', 'defaultCity',
+          'defaultState', 'whatsappTemplate', 'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // 2. BUSINESSES (/businesses/{businessId})
+    // =========================================================================
+    function isValidBusiness(data, businessId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'placeId', 'name', 'category', 'lat', 'lng',
+          'opportunityScore', 'opportunityLevel', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'placeId', 'name', 'category', 'categoryKey',
+          'address', 'city', 'state', 'neighborhood', 'postalCode',
+          'lat', 'lng', 'rating', 'userRatingCount', 'reviews',
+          'phone', 'whatsapp', 'websiteUri', 'googleMapsUri',
+          'instagram', 'email', 'opportunityScore', 'opportunityLevel',
+          'opportunityReasons', 'geminiAnalysis', 'hasWebsite', 'hasPhone',
+          'photosCount', 'hasOpeningHours', 'hasEditorialSummary',
+          'editorialSummary', 'openingHoursSummary', 'gbpScore', 'gbpGaps',
+          'lastUpdatedAt', 'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == businessId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isNonEmptyString(data.placeId, 256)
+        && isNonEmptyString(data.name, 200)
+        && isNonEmptyString(data.category, 100)
+        && isOptionalString(data, 'categoryKey', 64)
+        && isOptionalString(data, 'address', 400)
+        && isOptionalString(data, 'city', 100)
+        && isOptionalString(data, 'state', 60)
+        && isOptionalString(data, 'neighborhood', 100)
+        && isOptionalString(data, 'postalCode', 20)
+        && (data.lat is int || data.lat is float)
+        && (data.lng is int || data.lng is float)
+        && isOptionalNumber(data, 'rating')
+        && isOptionalInt(data, 'userRatingCount')
+        && (!('reviews' in data) || (data.reviews is list && data.reviews.size() <= 5 && (data.reviews.size() == 0 || data.reviews[0] is map)))
+        && isOptionalString(data, 'phone', 40)
+        && isOptionalString(data, 'whatsapp', 40)
+        && isOptionalString(data, 'websiteUri', 500)
+        && isOptionalString(data, 'googleMapsUri', 500)
+        && isOptionalString(data, 'instagram', 300)
+        && isOptionalString(data, 'email', 200)
+        && data.opportunityScore is int && data.opportunityScore >= 0 && data.opportunityScore <= 100
+        && data.opportunityLevel in ['baixa', 'media', 'alta']
+        && (!('opportunityReasons' in data) || (data.opportunityReasons is list && data.opportunityReasons.size() <= 10 && (data.opportunityReasons.size() == 0 || (data.opportunityReasons[0] is string && data.opportunityReasons[0].size() <= 200))))
+        && isOptionalString(data, 'geminiAnalysis', 2000)
+        && isOptionalBool(data, 'hasWebsite')
+        && isOptionalBool(data, 'hasPhone')
+        && isOptionalInt(data, 'photosCount')
+        && isOptionalBool(data, 'hasOpeningHours')
+        && isOptionalBool(data, 'hasEditorialSummary')
+        && isOptionalString(data, 'editorialSummary', 500)
+        && isOptionalString(data, 'openingHoursSummary', 400)
+        && (!('gbpScore' in data) || (data.gbpScore is int && data.gbpScore >= 0 && data.gbpScore <= 100))
+        && (!('gbpGaps' in data) || (data.gbpGaps is list && data.gbpGaps.size() <= 8 && (data.gbpGaps.size() == 0 || (data.gbpGaps[0] is string && data.gbpGaps[0].size() <= 200))))
+        && (!('lastUpdatedAt' in data) || data.lastUpdatedAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /businesses/{businessId} {
+      allow get: if isValidId(businessId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(businessId)
+        && isVerified()
+        && isValidBusiness(incoming(), businessId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(businessId)
+        && isOwnerData(existing())
+        && isValidBusiness(incoming(), businessId)
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().placeId == existing().placeId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'category', 'categoryKey', 'address', 'city', 'state',
+            'neighborhood', 'postalCode', 'lat', 'lng', 'rating', 'userRatingCount',
+            'reviews', 'phone', 'whatsapp', 'websiteUri', 'googleMapsUri',
+            'opportunityScore', 'opportunityLevel', 'opportunityReasons',
+            'hasWebsite', 'hasPhone', 'photosCount', 'hasOpeningHours',
+            'hasEditorialSummary', 'editorialSummary', 'openingHoursSummary',
+            'gbpScore', 'gbpGaps', 'lastUpdatedAt', 'updatedAt'
+          ])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['instagram', 'email', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['geminiAnalysis', 'updatedAt'])
+        );
+      allow delete: if isValidId(businessId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 3. LEADS (/leads/{leadId})
+    // =========================================================================
+    function isValidLead(data, leadId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'businessId', 'placeId', 'businessName', 'category',
+          'opportunityScore', 'opportunityLevel', 'stage', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'businessId', 'placeId', 'businessName', 'category',
+          'city', 'address', 'phone', 'whatsapp', 'email', 'instagram',
+          'websiteUri', 'googleMapsUri', 'rating', 'userRatingCount',
+          'opportunityScore', 'opportunityLevel', 'stage', 'notes',
+          'lastContactAt', 'nextFollowUpAt', 'convertedSaleId',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == leadId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isValidId(data.businessId)
+        && isNonEmptyString(data.placeId, 256)
+        && isNonEmptyString(data.businessName, 200)
+        && isNonEmptyString(data.category, 100)
+        && isOptionalString(data, 'city', 100)
+        && isOptionalString(data, 'address', 400)
+        && isOptionalString(data, 'phone', 40)
+        && isOptionalString(data, 'whatsapp', 40)
+        && isOptionalString(data, 'email', 200)
+        && isOptionalString(data, 'instagram', 300)
+        && isOptionalString(data, 'websiteUri', 500)
+        && isOptionalString(data, 'googleMapsUri', 500)
+        && isOptionalNumber(data, 'rating')
+        && isOptionalInt(data, 'userRatingCount')
+        && data.opportunityScore is int && data.opportunityScore >= 0 && data.opportunityScore <= 100
+        && data.opportunityLevel in ['baixa', 'media', 'alta']
+        && data.stage in ['novo_lead', 'nao_contatado', 'primeiro_contato', 'interessado', 'em_negociacao', 'venda_concluida', 'sem_interesse']
+        && isOptionalString(data, 'notes', 3000)
+        && isOptionalString(data, 'lastContactAt', 64)
+        && isOptionalString(data, 'nextFollowUpAt', 64)
+        && isOptionalString(data, 'convertedSaleId', 128)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /leads/{leadId} {
+      allow get: if isValidId(leadId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(leadId)
+        && isVerified()
+        && isValidLead(incoming(), leadId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/businesses/$(incoming().businessId)).data.ownerId == request.auth.uid;
+      allow update: if isValidId(leadId)
+        && isOwnerData(existing())
+        && isValidLead(incoming(), leadId)
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().businessId == existing().businessId
+        && incoming().placeId == existing().placeId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['stage', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['notes', 'lastContactAt', 'nextFollowUpAt', 'stage', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['phone', 'whatsapp', 'email', 'instagram', 'websiteUri', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['convertedSaleId', 'stage', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly(['opportunityScore', 'opportunityLevel', 'rating', 'userRatingCount', 'updatedAt'])
+        );
+      allow delete: if isValidId(leadId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 4. INTERACTIONS (/interactions/{interactionId})
+    // =========================================================================
+    function isValidInteraction(data, interactionId) {
+      return data.keys().hasAll(['id', 'ownerId', 'leadId', 'type', 'summary', 'contactDate', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'leadId', 'businessName', 'type', 'summary', 'contactDate', 'createdAt'])
+        && data.id is string && data.id == interactionId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isValidId(data.leadId)
+        && isOptionalString(data, 'businessName', 200)
+        && data.type in ['whatsapp', 'ligacao', 'email', 'instagram', 'visita', 'nota']
+        && isNonEmptyString(data.summary, 1500)
+        && isNonEmptyString(data.contactDate, 64)
+        && data.createdAt is timestamp;
+    }
+
+    match /interactions/{interactionId} {
+      allow get: if isValidId(interactionId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(interactionId)
+        && isVerified()
+        && isValidInteraction(incoming(), interactionId)
+        && incoming().createdAt == request.time
+        && getAfter(/databases/$(database)/documents/leads/$(incoming().leadId)).data.ownerId == request.auth.uid;
+      allow update: if false;
+      allow delete: if isValidId(interactionId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 5. PRODUCTS (/products/{productId})
+    // =========================================================================
+    function isValidProduct(data, productId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'name', 'sku', 'unitCost', 'salePrice',
+          'stockQuantity', 'minStock', 'avgAcquisitionCost', 'active',
+          'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'name', 'sku', 'unitCost', 'salePrice',
+          'stockQuantity', 'minStock', 'avgAcquisitionCost', 'active',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == productId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isNonEmptyString(data.name, 160)
+        && isNonEmptyString(data.sku, 64)
+        && (data.unitCost is int || data.unitCost is float) && data.unitCost >= 0
+        && (data.salePrice is int || data.salePrice is float) && data.salePrice >= 0
+        && data.stockQuantity is int && data.stockQuantity >= 0
+        && data.minStock is int && data.minStock >= 0
+        && (data.avgAcquisitionCost is int || data.avgAcquisitionCost is float) && data.avgAcquisitionCost >= 0
+        && data.active is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /products/{productId} {
+      allow get: if isValidId(productId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(productId)
+        && isVerified()
+        && isValidProduct(incoming(), productId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(productId)
+        && isOwnerData(existing())
+        && isValidProduct(incoming(), productId)
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'name', 'sku', 'unitCost', 'salePrice', 'minStock', 'active', 'updatedAt'
+          ])
+          || incoming().diff(existing()).affectedKeys().hasOnly([
+            'stockQuantity', 'avgAcquisitionCost', 'unitCost', 'updatedAt'
+          ])
+        );
+      allow delete: if isValidId(productId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 6. SALES (/sales/{saleId})
+    // =========================================================================
+    function isValidSale(data, saleId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'customerName', 'totalQuantity', 'totalRevenue',
+          'totalCost', 'discount', 'shipping', 'netReceived', 'grossProfit',
+          'marginPercent', 'paymentMethod', 'paymentStatus', 'saleDate',
+          'stockDeducted', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'leadId', 'customerName', 'productSummary',
+          'totalQuantity', 'totalRevenue', 'totalCost', 'discount', 'shipping',
+          'netReceived', 'grossProfit', 'marginPercent', 'paymentMethod',
+          'paymentStatus', 'saleDate', 'notes', 'stockDeducted',
+          'createdAt', 'updatedAt'
+        ])
+        && data.id is string && data.id == saleId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'leadId', 128)
+        && isNonEmptyString(data.customerName, 200)
+        && isOptionalString(data, 'productSummary', 300)
+        && data.totalQuantity is int && data.totalQuantity >= 1
+        && (data.totalRevenue is int || data.totalRevenue is float) && data.totalRevenue >= 0
+        && (data.totalCost is int || data.totalCost is float) && data.totalCost >= 0
+        && (data.discount is int || data.discount is float) && data.discount >= 0
+        && (data.shipping is int || data.shipping is float) && data.shipping >= 0
+        && (data.netReceived is int || data.netReceived is float) && data.netReceived >= 0
+        && (data.grossProfit is int || data.grossProfit is float)
+        && (data.marginPercent is int || data.marginPercent is float)
+        && data.paymentMethod in ['pix', 'credito', 'debito', 'dinheiro', 'boleto', 'transferencia']
+        && data.paymentStatus in ['pago', 'pendente', 'cancelado']
+        && isNonEmptyString(data.saleDate, 32)
+        && isOptionalString(data, 'notes', 1500)
+        && data.stockDeducted is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /sales/{saleId} {
+      allow get: if isValidId(saleId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(saleId)
+        && isVerified()
+        && isValidSale(incoming(), saleId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isValidId(saleId)
+        && isOwnerData(existing())
+        && existing().paymentStatus != 'cancelado'
+        && isValidSale(incoming(), saleId)
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (!existing().stockDeducted || incoming().stockDeducted == true)
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['paymentStatus', 'netReceived', 'notes', 'updatedAt'])
+          || (!existing().stockDeducted && incoming().diff(existing()).affectedKeys().hasOnly(['paymentStatus', 'stockDeducted', 'netReceived', 'updatedAt']))
+        );
+      allow delete: if isValidId(saleId) && isOwnerData(existing()) && existing().paymentStatus == 'pendente' && !existing().stockDeducted;
+    }
+
+    // =========================================================================
+    // 7. SALE ITEMS (/sale_items/{itemId})
+    // =========================================================================
+    function isValidSaleItem(data, itemId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'saleId', 'productId', 'productName',
+          'quantity', 'unitPrice', 'unitCost', 'subtotal', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'saleId', 'productId', 'productName',
+          'sku', 'quantity', 'unitPrice', 'unitCost', 'subtotal', 'createdAt'
+        ])
+        && data.id is string && data.id == itemId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isValidId(data.saleId)
+        && isValidId(data.productId)
+        && isNonEmptyString(data.productName, 160)
+        && isOptionalString(data, 'sku', 64)
+        && data.quantity is int && data.quantity >= 1
+        && (data.unitPrice is int || data.unitPrice is float) && data.unitPrice >= 0
+        && (data.unitCost is int || data.unitCost is float) && data.unitCost >= 0
+        && (data.subtotal is int || data.subtotal is float) && data.subtotal >= 0
+        && data.createdAt is timestamp;
+    }
+
+    match /sale_items/{itemId} {
+      allow get: if isValidId(itemId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(itemId)
+        && isVerified()
+        && isValidSaleItem(incoming(), itemId)
+        && incoming().createdAt == request.time
+        && getAfter(/databases/$(database)/documents/sales/$(incoming().saleId)).data.ownerId == request.auth.uid
+        && get(/databases/$(database)/documents/products/$(incoming().productId)).data.ownerId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // 8. INVENTORY MOVEMENTS (/inventory_movements/{movementId})
+    // =========================================================================
+    function isValidInventoryMovement(data, movementId) {
+      return data.keys().hasAll([
+          'id', 'ownerId', 'productId', 'productName', 'type',
+          'quantityDelta', 'previousQuantity', 'newQuantity', 'unitCost', 'createdAt'
+        ])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'productId', 'productName', 'type',
+          'quantityDelta', 'previousQuantity', 'newQuantity', 'unitCost',
+          'saleId', 'reason', 'createdAt'
+        ])
+        && data.id is string && data.id == movementId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isValidId(data.productId)
+        && isNonEmptyString(data.productName, 160)
+        && data.type in ['entrada', 'saida_venda', 'ajuste']
+        && data.quantityDelta is int
+        && data.previousQuantity is int && data.previousQuantity >= 0
+        && data.newQuantity is int && data.newQuantity >= 0
+        && (data.unitCost is int || data.unitCost is float) && data.unitCost >= 0
+        && isOptionalString(data, 'saleId', 128)
+        && isOptionalString(data, 'reason', 300)
+        && data.createdAt is timestamp;
+    }
+
+    match /inventory_movements/{movementId} {
+      allow get: if isValidId(movementId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(movementId)
+        && isVerified()
+        && isValidInventoryMovement(incoming(), movementId)
+        && incoming().createdAt == request.time
+        && getAfter(/databases/$(database)/documents/products/$(incoming().productId)).data.ownerId == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // 9. EXPENSES (/expenses/{expenseId})
+    // =========================================================================
+    function isValidExpense(data, expenseId) {
+      return data.keys().hasAll(['id', 'ownerId', 'description', 'category', 'amount', 'expenseDate', 'createdAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'description', 'category', 'amount', 'expenseDate', 'createdAt'])
+        && data.id is string && data.id == expenseId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isNonEmptyString(data.description, 240)
+        && isNonEmptyString(data.category, 80)
+        && (data.amount is int || data.amount is float) && data.amount >= 0
+        && isNonEmptyString(data.expenseDate, 32)
+        && data.createdAt is timestamp;
+    }
+
+    match /expenses/{expenseId} {
+      allow get: if isValidId(expenseId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(expenseId)
+        && isVerified()
+        && isValidExpense(incoming(), expenseId)
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(expenseId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 10. REMINDERS (/reminders/{reminderId})
+    // =========================================================================
+    function isValidReminder(data, reminderId) {
+      return data.keys().hasAll(['id', 'ownerId', 'leadId', 'businessName', 'title', 'dueDate', 'completed', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['id', 'ownerId', 'leadId', 'businessName', 'title', 'dueDate', 'completed', 'createdAt', 'updatedAt'])
+        && data.id is string && data.id == reminderId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isValidId(data.leadId)
+        && isNonEmptyString(data.businessName, 200)
+        && isNonEmptyString(data.title, 200)
+        && isNonEmptyString(data.dueDate, 32)
+        && data.completed is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /reminders/{reminderId} {
+      allow get: if isValidId(reminderId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(reminderId)
+        && isVerified()
+        && isValidReminder(incoming(), reminderId)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/leads/$(incoming().leadId)).data.ownerId == request.auth.uid;
+      allow update: if isValidId(reminderId)
+        && isOwnerData(existing())
+        && isValidReminder(incoming(), reminderId)
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().leadId == existing().leadId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['completed', 'title', 'dueDate', 'updatedAt']);
+      allow delete: if isValidId(reminderId) && isOwnerData(existing());
+    }
+
+    // =========================================================================
+    // 11. SEARCH HISTORY (/search_history/{searchId})
+    // =========================================================================
+    function isValidSearchHistory(data, searchId) {
+      return data.keys().hasAll(['id', 'ownerId', 'category', 'radiusKm', 'requestedCount', 'resultsCount', 'createdAt'])
+        && data.keys().hasOnly([
+          'id', 'ownerId', 'city', 'state', 'neighborhood', 'postalCode',
+          'radiusKm', 'category', 'requestedCount', 'resultsCount', 'createdAt'
+        ])
+        && data.id is string && data.id == searchId && isValidId(data.id)
+        && data.ownerId is string && data.ownerId == request.auth.uid
+        && isOptionalString(data, 'city', 100)
+        && isOptionalString(data, 'state', 60)
+        && isOptionalString(data, 'neighborhood', 100)
+        && isOptionalString(data, 'postalCode', 20)
+        && (data.radiusKm is int || data.radiusKm is float) && data.radiusKm > 0 && data.radiusKm <= 100
+        && isNonEmptyString(data.category, 100)
+        && data.requestedCount is int && data.requestedCount >= 1 && data.requestedCount <= 100
+        && data.resultsCount is int && data.resultsCount >= 0
+        && data.createdAt is timestamp;
+    }
+
+    match /search_history/{searchId} {
+      allow get: if isValidId(searchId) && (resource == null ? isVerified() : isOwnerData(existing()));
+      allow list: if isOwnerData(existing());
+      allow create: if isValidId(searchId)
+        && isVerified()
+        && isValidSearchHistory(incoming(), searchId)
+        && incoming().createdAt == request.time;
+      allow update: if false;
+      allow delete: if isValidId(searchId) && isOwnerData(existing());
+    }
+  }
+}
